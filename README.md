@@ -1,4 +1,4 @@
-Os Códigos abaixo foram criados para apoiar a equipe comercial de uma empresa voltada à vendas de peças de carros pela internet.
+Os Códigos abaixo foram criados para apoiar a equipe comercial de uma empresa voltada à vendas de peças de carros
 
 Estoque: Feito do zero por mim, utilizando curso realizado por um Prompt do ChatGPT que criei, com foco em dominar o pandas do zero ao avançado.
 
