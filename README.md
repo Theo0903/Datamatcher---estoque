@@ -1,3 +1,5 @@
+Os Códigos abaixo foram criados para apoiar a equipe comercial de uma empresa voltada à vendas de peças de carros pela internet.
+
 Estoque: Feito do zero por mim, utilizando curso realizado por um Prompt do ChatGPT que criei, com foco em dominar o pandas do zero ao avançado.
 
 DataMatcher: Código programado 100% pelo ChatGPT utilizando um prompt que criei de curso Python para análise de dados, o objetivo além de utilizar no setor onde trabalho, foi aprender na prática como é realizada a montagem de um código completo.
@@ -6,4 +8,4 @@ O código consiste em Comparar strings de 2 bases de dados diferentes anteriorme
 
 Empresa_Ajustado - Código programado 100% pelo ChatGPT utilizando um prompt que criei de curso Python para análise de dados, o arquivo consiste em pegar 1 base de dados e dividi-lá de forma padrão, para conseguir através do Datamatcher achar similaridade com a base de dados do concorrente.
 
-Concorrente_ajustado - Código programado 100% pelo ChatGPT utilizando um prompt que criei de curso Python para análise de dados, o arquivo consiste em pegar 1 base de dados e dividi-lá de forma padrão, para conseguir através do Datamatcher achar similaridade com a base de dados da empresa.
+Concorrente_Ajustado - Código programado 100% pelo ChatGPT utilizando um prompt que criei de curso Python para análise de dados, o arquivo consiste em pegar 1 base de dados e dividi-lá de forma padrão, para conseguir através do Datamatcher achar similaridade com a base de dados da empresa.
