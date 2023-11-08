@@ -1,0 +1,237 @@
+import pandas as pd
+import re
+from openpyxl import load_workbook
+
+
+def transform_ano(valor):
+  if valor and isinstance(valor, str):
+    anos = re.findall(r'\b\d{2}(?:\d{2})?\b', valor)
+    if anos:
+      anos = [
+        "20" + num if (len(num) == 2 and int(num) <= 23) else
+        "19" + num if len(num) == 2 and 50 <= int(num) <= 99 else
+        num
+        for num in anos
+      ]
+      anos = [num for num in anos if num]  # Ignorar valores vazios
+      anos = sorted(anos, key=lambda x: int(x))
+      return ", ".join(anos)
+  return "S/A"
+
+
+# Lista de palavras-chave
+palavras_chave = [
+    " MÁSCARA NEGRA ",
+    " TRASEIRA ",
+    " TRASEIRA",
+    " DIANTEIRA ",
+    " DIANTEIRA",
+    " PRIMER ",
+    " ACRILICO ",
+    " ACRÍLICO ",
+    " PAR",
+    " MÁSC CROMADA ",
+    " ARTEB ",
+    " MASCARA NEGRA ",
+    " FOCO DUPLO ",
+    " CROMADO ",
+    " CROMADA ",
+    " POSTERIOR ",
+    " LENTE LISA ",
+    " LENTE CROMADA ",
+    " FUME ",
+    "SUPERIOR",
+    "INFERIOR",
+    " NEBLINA ",
+    " COM LED ",
+    " SEM LED ",
+    " C/PROJETOR ",
+    " CANHÃO PRETO ",
+    " CANHÃO CROMADO ",
+    " PISCA CRISTAL ",
+    " PISCA AMBAR ",
+    " C/LED ",
+    " S/PROJETOR ",
+    " ENCAIXE CIBIÉ ",
+    " COM DEFLETOR"
+    " S/LED ",
+    " CROMO ",
+    " ACRILICA ",
+    " ACRILICO ",
+    " ACRÍLICO ",
+    " ACRÍLICA ",
+    " MANUAL ",
+    " C/FURO ",
+    " C/LÂMPADA ",
+    " C/LAMPADA ",
+    " C/XENON ",
+    " S/XENON ",
+    " XENON ",
+    " RAIADO ",
+    " CINZA ",
+    " MASCARA ",
+    " CANTO ",
+    " MALA ",
+    " BICOLOR ",
+    " TRICOLOR ",
+    " TRIDIMENSIONAL ",
+    " CARCAÇA ",
+    " FOCO SIMPLES ",
+    " CRISTAL ",
+    " FUMÊ ",
+    " MÁSCARA CROMADA ",
+    " MASCARA CROMADA ",
+    " MASCARA NEGRA ",
+    " MASCARA CROMADA ",
+    " NEGRO ",
+    " ROSA ",
+    "AUXILIAR",
+    " AMBAR ",
+    " MOLDURA PRETA ",
+    " LENTE VIDRO ",
+    " SEDAN ",
+    " HATCH ",
+    " ALEMÃO ",
+    " COM LED ",
+    " SEM LED ",
+    " CROMOMIX ",
+    " LENTE ESTRIADA ",
+    " FUME CLARO ",
+    " CARCACA CINZA ",
+    " POROSO ",
+    " LISO ",
+    " PRIMER ",
+    " SEM FURO ",
+    " COM FURO ",
+    " TEXTURIZADO ",
+    " TEXTURIZADA ",
+    " UNIVERSAL ",
+    " XENON ",
+    " COM PROJETOR ",
+]
+
+# Carregar o arquivo Excel em um DataFrame
+
+workbook = load_workbook(filename=r'C:\Nova pasta\BASES\Concorrente_BASE.xlsx')
+sheet = workbook['BASE Concorrente']
+data = sheet.values
+headers = next(data)
+df_Concorrente_base = pd.DataFrame(data, columns=headers)
+
+dadosBaseConcorrente = df_Concorrente_base['DESCRICAO'].values
+dadosColunaB = df_Concorrente_base['MLB'].values
+
+df_Concorrente_relacionar = pd.DataFrame(columns=['MLB', 'PEÇA', 'CARRO', 'ANO', 'LADO', 'DIFERENCA', 'CARACTERISTICA'])
+
+carrosPopulares = [
+    ' 106 ', ' 145 ', ' 180 ', ' 608 ', ' ACTROS ', ' ADVENTURE ', ' B11 ', ' MAXIMA ', ' 330 ', ' B160 ', ' C220 ',
+    ' 147 ',  ' CHARADE ', ' X60 ', ' NUBIRA ', ' 504 ', ' CORONA ', ' PRIMERA ', ' STAREX ', ' 325 ', ' STALIS ',
+    ' SUPREMA ', ' DUCATRO ', ' PULSE ', ' TRASIT ', ' TERIOS ', ' J6 ', ' A200 ', ' CLC ', ' CLC 200 ', ' V60 ',
+    ' IBIZA ', ' HOGGAR ', ' LANOS ', ' 156 ', ' CORCEL ', ' TOWN & COUNTRY ', ' 207 ', ' RX ', ' D21 ', ' 205 ',
+    ' 206 ', ' 208 ', ' 208', ' 308 ', ' 300C ', ' X TRAIL ', ' XTERRA ', ' CORCEL II', ' CLASSE E43 ', ' 307 ',
+    ' 306 ', ' 406 ', ' 320 ', ' 320I ', ' 350Z ', ' C43 ', ' C63 ', ' C220 ', ' C 220 ', ' E320 ', ' ATEGO ',
+    ' ALFA 147 ', ' TAOS ', ' BELINA ', ' B200 ', ' 350 ', ' 405 ', ' 407 ', ' 500 ', ' 520 ', ' A1 ', ' A3 ', ' A4 ',
+    ' A5 ', ' A6 ', ' A7 ', ' A8 ', ' ACCENT ', ' ACCORD ', ' ACTOS ', ' AGILE ', ' AGILE', ' AIRCROSS ', ' AIRTREK ',
+    ' ALTIMA ', ' AMAROK ', ' AMAROK COMFORTLINE ', ' AMAROK HIGHLINE ', ' AMAROK TRENDLINE ', ' APOLLO ', ' ARGO ',
+    ' ARGO', ' ARRIZO ', ' ARRIZO 5 ', ' ASTRA ', ' ASX ', ' ATOS ', ' AZERA ', ' APOLO ', ' APOLO', ' BEETLE ',
+    ' BERLINGO ', ' BESTA ', ' BLAZER ', ' BONGO ', ' BORA ', ' BOXER ', ' BRASILIA ', ' BRASÍLIA ', ' BRAVO ',
+    ' BRONCO ', ' C3 ', ' C180 ', ' C 180 ', ' C 150 ', ' C3 PALLAS ', ' C30 ', ' C4 ', ' C4 PALLAS ', ' C5 ', ' C8 ',
+    ' CAMARO ', ' CAMRY ', ' CAPTIVA ', ' CAPTUR ', ' CARAVAN ', ' CARENS ', ' CARNIVAL ', ' CAYENNE ', ' CAYMAN ',
+    ' CELER ', ' CELTA ', ' CELTA', ' CERATO ', ' CHALLEGER ', ' CHALLENGER ', ' CHEROKEE ', ' CHEVETTE ', ' CIELO ',
+    ' CITROEN XANTIA ', ' CITY ', ' CIVIC ', ' CLA ', ' CLASSE A ', ' CLASSE B ', ' CLASSE C ', ' CLASSE C63 ',
+    ' CLASSE E ', ' CLASSE M ', ' CLASSE S ', ' CLASSIC ', ' CLETA ', ' CLIO ', ' CLK ', ' CLS ', ' CLS 63 ',
+    ' COBALT ', ' COLT ', ' COMPASS ', ' COOPER ',  ' COOPER S ', ' CORDOBA ', ' COROLLA ', ' CORSA ',
+    ' CORSA MONTANA ', ' COUNTRYMAN ',  ' COURIER ', ' CRETA ', ' CRONOS ', ' CRONOS', ' CROSSFOX ', ' CROSSOFX ',
+    ' CRUISER ', ' ALFA ROMEO 147 ', ' NEW BETTLE ', ' CRUZE ', ' CRV ', ' D20 ', ' D-20 ', ' D4 ', ' DAILY ',
+    ' DAKOTA ', ' DEFENDER ', ' DEL REY ', ' DIESEL ', ' DISCOVERY ', ' DISCOVERY 3 ', ' DISCOVERY 4 ', ' DOBLO ',
+    ' DOBLÒ ', ' DOUBLÉ CABINE ', ' DS3 ', ' D 20 ', ' DS5 ', ' DUCATO ', ' DURANGO ', ' DUSTER ', ' DYNAMIC ', ' EC7 ',
+    ' ECLIPSE ', ' ECOSPORT ', ' EDGE ', ' ELANTRA ', ' ELBA ', ' EQUINOX ', ' ESCORT ', ' ESPERO ', ' ETIOS ',
+    ' ES350 ', ' EVOQUE ', ' EXCEL ', ' EXECUTIVE ', ' EXPERT ', ' EXPLORER ', ' EXPRESS ', ' F1000 ', ' F-1 ',
+    ' F150 ', ' F-1000 ', ' CHEVY ', ' 318I ', ' F250 ', ' F-250 ', ' FACE ', ' FAFA ', ' FIAT 500 ', ' FIELDER ',
+    ' FIESTA ', ' FIORINO ', ' FIT ', ' FLEX ', ' FLUENCE ', ' FOCUS ', ' FOCUS', ' FORRESTER ', ' FORTWO ', ' FOX ',
+    ' FOX BLUEMOTION ', ' FOX CONNECT ', ' FOX PEPPER ', ' FOX XTREME ', ' F-PACE ', ' FREELANDER ', ' FREEMONT ',
+    ' FRONTIER ', ' FUSCA ', ' FUSCA', ' FUSION ', ' G1 ', ' G1 PLUS ', ' G350 ', ' GALANT ', ' GC2 ',  ' C200 ',
+    ' LEGACY ', ' GLA ', ' GLB ', ' GLC ', ' GLE ', ' GLK ', ' GOL ', ' GOL CITY ', ' GOL CL ', ' GOL GTE ',
+    ' GOL ITÁLIA ', ' GOL POWER ', ' GOL SPECIAL ', ' GOL TRACK ', ' GOL VILLAGE ', ' GOLF ', ' GOLF GTI ', ' GOLF R ',
+    ' GOLF VARIANT ', ' GRAND CHEROKEE ', ' GRAND SIENA ', ' GRAND VITARA ', ' H1 ', ' H1 STAREX ', ' H100 ', ' H3 ',
+    ' HB20 ', ' HB20', ' HB20S ', ' HILLUX ', ' HILUX ', ' HR ', ' HRV ', ' HR-V ', ' HUMMER ', ' HYUNDAI I30 ',
+    ' I30 ', ' IDEA ', ' IDEIA ', ' IMPACT ', ' IMPREZA ', ' IPANEMA ', ' IS250 ', ' IVECO ', ' IX35 ', ' J3 ', ' J5 ',
+    ' J6 ', ' JAC T4 ', ' JAC T40 ', ' JAC T5 ', ' JAC T6 ', ' JAGUAR F PACE ', ' JET ', ' JETTA ', ' JETTA VARIANT ',
+    ' JIMNY ', ' JOURNEY ', ' JUMPER ', ' JUMPY ', ' KA ', ' KADETT ', ' KANGOO ', ' KARMANN GHIA ', ' KICKS ',
+    ' KOMBI ', ' KOMBI STANDARD ', ' KWID ', ' L200 ', ' L300 ', ' LAGUNA ', ' LANCER ', ' LANCER GT ', ' LAND CRUISER ',
+    ' LAND CRUISER PRADO ', ' LIFAN ', ' LIFAN 320 ', ' LINEA ',   ' LIVINA ', ' LIVING ', ' LOGAN ', ' LOGUS ',
+    ' LOGUS', ' LX470 ', ' M3 ', ' MAGENTIS ', ' MAVERICK ', ' MALIBU ', ' MARCH ', ' MAREA ', ' MASTER ',
+    ' MAZDA 626 ', ' MEGANE ', ' MERCEDES CLA ', ' MERIVA ', ' MICRA ', ' ML ', ' MOBI ', ' MONDEO ', ' MONTANA ',
+    ' MONZA ', ' MUSTANG ', ' NEON ', ' NIVUS ', ' OGGI ', ' OMEGA ', ' ONIX ', ' ONIX', ' OPTIMA ', ' OPALA ',
+    ' OROCH ', ' C 200 K ', ' OUTBACK ', ' OUTLANDER ', ' PAJERO ', ' PALIO ', ' PALIO SIENA STRADA G3 ', ' PAMPA ',
+    ' PANAMERICANA ', ' PARATI ', ' PARATI SURF ', ' PARTNER ', ' PASSAT ', ' PASSAT CC ', ' PASSAT VARIANT ',
+    ' PATHFINDER ', ' PEUGEOT 106 ', ' PEUGEOT 2008 ', ' PEUGEOT 206 ', ' PEUGEOT 207 ', ' PEUGEOT 208 ',
+    ' PEUGEOT 3008 ', ' PEUGEOT 306 ', ' PEUGEOT 307 ', ' PEUGEOT 406 ', ' PEUGEOT 408 ', ' PEUGEOT 500 ',
+    ' PEUGEOT 508 ', ' PEUGEOT PICK UP ', ' STRATUS ', ' HIGHLANDER ', ' S CROSS  ', ' PHEV ', ' PICANTO ', ' PICASSO ',
+    ' POINTER ', ' POLO ', ' POLO SEDAN ', ' PRADO ', ' PREGIO ', ' PREMIO ', ' PRISMA ', ' PRIUS ', ' PUNTO ', ' Q3 ',
+    ' Q5 ', ' Q7 ', ' QQ ', ' QUANTUM ', ' QX ', ' R19 ', ' R21 ', ' R8 ', ' RAM ', ' RANGE ROVER SPORT ',  ' RANGER ',
+    ' RAV ', ' RAV4 ', ' RX350 ', ' RENEGADE ', ' RIO ', ' ROYALLES ', ' RS6 ', ' RS3 ', ' S 10 ', ' S3 ', ' S40 ',
+    ' S5 ', ' S500 ', ' S60 ', ' S80 ', ' SANDBOX ', ' SANDERO ', ' SANTA FE ', ' SANTA FÉ ', ' SANTANA ',
+    ' SANTANA EXECUTIVE ', ' SANTANA GLS ', ' SANTANA QUANTUM ', ' SAVEIRO ', ' SAVEIRO CITY ', ' SAVEIRO CROSS ',
+    ' SAVEIRO ROBUST ', ' SAVEIRO SURF ', ' SCENIC ', ' SCÉNIC ', ' S-CROSS ', ' SENTRA ', ' SERIE 1 ', ' SERIE 2 ',
+    ' SERIE 3 ', ' SERIE 4 ', ' SERIE 5 ', ' SERIE 7 ',  ' SIENA ',  ' SILVERADO ', ' SLK ', ' SOLARA ', ' SONATA ',
+    ' SONIC ', ' SORENTO ', ' SOUL ', ' SP2 ', ' SPACE CROSS ', ' SPACECROSS ', ' SPACEFOX ', ' SPACEFOX SPORTLINE ',
+    ' SPAZIO ', ' SPAZIO', ' SPIN ', ' SPORTAGE ', ' SPRINTER ', ' SRV ', ' STILO ', ' STRADA ', ' SW4 ', ' SWIFT ',
+    ' SX4 ', ' SYM ', ' SYMBOL ', ' T40 ', ' TR4 ', ' T6 ', ' TAURUS ', ' TCROSS ', ' TEMPRA ', ' TEMPRA', ' TIDA ',
+    ' TIGGO ', ' TIGRA ', ' TIGUAN ', ' TIGUAN ALLSPACE ', ' TIIDA ', ' TIPO ', ' TOPIC ', ' TORO ', ' TORO',
+    ' TOUAREG ', ' TOWN E COUNTRY ', ' TOWNER ', ' TRACKER ', ' TRAFIC ', ' TRANSIT ', ' TRITON ', ' TT ', ' TUCSON ',
+    ' TWINGO ', ' UNO ', ' UP! ', ' VECTRA ', ' V40 ', ' VELOSTER ', ' VELAR ', ' VERA CRUZ ', ' VERACRUZ ', ' VERONA ',
+    ' VERSA ', ' VERSAILLES ', ' VIRTUS ', ' VITARA ', ' VITO ', ' VOGUE ', ' VOYAGE ', ' VOYAGE COMFORTLINE ',
+    ' VOYAGE SPECIAL ', ' WAGON ', ' WRANGLER ', ' X1 ', ' X3 ', ' X5 ', ' X6 ', ' XANTIA ', ' XC60 ', ' XC90 ', ' XI ',
+    ' XSARA ', ' XTRAIL ', ' XV ', ' YARIS ', ' Z4 ', ' ZAFIRA ', ' ZDX ', ' ZX ', ' AIR CROSS ', ' AIR-CROSS ',
+    ' ALFA 155 ', ' ALFA 155 ' ' AUDI 80 ', ' BMW ', ' BMW 3 ', ' BRAVA ', ' CACTUS ', ' CHALENGER ', ' COMMANDER ',
+    ' FORESTER ', ' NEW BEETLE ', ' R-19 ', ' R-21 ', ' RAV-4 ', ' RENAULT ', ' S10 ', ' S-10 ', ' SEPHIA ',
+    ' T-CROSS ', ' TRAFFIC ', ' X-TERRA ', ' MURANO ', ' 21 ', ' STRALIS ', ' PANORAMA ', ' COCEL ', '  DODGE 1800 ',
+    ' EUROPA ', 'MEGANE ', ' HIUX ', ' CORONA ', ' COURE ', ' GMC ', ' PROTEGE ', ' SHEHZORE ', ' 850 ', ' S70 ',
+    ' LEL REY ', ' SCALA ', ' KANGO ', ' MARIVA ', ' 3008 ', ' SORETO ', ' VITUS ', ' DISCOVEY ', ' HLUX ', ' HLIUX  ',
+    ' FUCUS ', ' OUTLADER ', ' COROLLLA ', ' DODGE 1800 ', ' VIATARA ', ' FIAT 500', ' J2 ', ' A80 ', ' 300 C ',
+    ' VARIANT ', ' E250 '
+]
+
+for i in range(len(dadosBaseConcorrente)):
+    valor = dadosBaseConcorrente[i]
+
+    if pd.notnull(valor):
+        descricao = str(valor)
+        primeiraPalavra = ""
+
+        if "FAROL" in descricao and "AUXILIAR" in descricao:
+            primeiraPalavra = "FAROL DE MILHA"
+        else:
+            primeiraPalavra = descricao.split(" ")[0]
+
+        anos = transform_ano(descricao)  # Chamada da função transform_ano para obter os anos
+        if not anos:
+            anos = "S/A"
+
+        lado = ""
+        if descricao and (" LE" in descricao or "LD" in descricao):
+            lado = "LE" if " LE" in descricao else "LD"
+        else:
+            lado = "SEM LADO"
+
+        carro_encontrado = False
+        for carro in carrosPopulares:
+            if carro in descricao:
+                caracteristica = ""
+                for palavra in palavras_chave:
+                    if palavra in descricao:
+                        caracteristica += palavra + ", "
+                caracteristica = caracteristica.rstrip(", ")  # Remover a última vírgula
+                df_Concorrente_relacionar.loc[len(df_Concorrente_relacionar)] = [dadosColunaB[i], primeiraPalavra, carro, anos, lado, "", caracteristica]
+                carro_encontrado = True
+
+
+        if not carro_encontrado:
+            df_Concorrente_relacionar.loc[len(df_Concorrente_relacionar)] = [dadosColunaB[i], primeiraPalavra, "", anos, lado, descricao, ""]
+
+# Salvar o DataFrame em um novo arquivo Excel
+output_path = r'C:\Nova pasta\Concorrente_AJUSTADO_COLAR.xlsx'
+df_Concorrente_relacionar.to_excel(output_path, index=False)
+
+print(df_Concorrente_relacionar)
