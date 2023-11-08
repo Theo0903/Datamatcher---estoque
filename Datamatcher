@@ -1,0 +1,173 @@
+import sys
+import pandas as pd
+import time
+import sqlite3
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView, QComboBox
+from PyQt5.QtGui import QFont, QColor, QIcon, QPalette, QPainter, QPixmap
+from PyQt5.QtCore import Qt, QSize
+
+Empresa = r'C:\Nova pasta\BASES\Empresa_AJUSTADO.xlsx'
+concorrente = r'C:\Nova pasta\BASES\CONCORRENTE_AJUSTADO.xlsx'
+database_file = r'C:\Users\bruno.teofilo\Downloads\DB_RELACIONAMENTO.sqlite3'
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("DATAMATCH")
+        self.setGeometry(100, 100, 800, 600)
+
+        # Define o fundo do aplicativo como azul escuro
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(0, 0, 51))
+        self.setPalette(palette)
+
+        self.setWindowIcon(QIcon('seu_logo.png'))
+
+        self.central_widget = QWidget(self)
+        self.setCentralWidget(self.central_widget)
+
+        self.layout = QVBoxLayout(self.central_widget)
+        self.layout.setAlignment(Qt.AlignTop)
+
+        self.label_icon = QLabel(self.central_widget)
+        pixmap = QPixmap("seu_logo.png")
+        self.label_icon.setPixmap(pixmap.scaledToHeight(80, Qt.SmoothTransformation))
+        self.layout.addWidget(self.label_icon, alignment=Qt.AlignLeft)
+
+        self.label_title = QLabel("Datamatcher", self.central_widget)
+        self.label_title.setFont(QFont("roboto", 24, QFont.Bold))
+        self.label_title.setStyleSheet("color: white;")
+        self.layout.addWidget(self.label_title, alignment=Qt.AlignRight)
+
+        self.line_edit_rows = QLineEdit(self.central_widget)
+        self.line_edit_rows.setPlaceholderText("Número de linhas a processar")
+        self.layout.addWidget(self.line_edit_rows)
+
+        self.combo_box_compatibility = QComboBox(self.central_widget)
+        self.combo_box_compatibility.addItem("Todas")
+        self.combo_box_compatibility.addItem("100%")
+        self.combo_box_compatibility.addItem("50%")
+        self.combo_box_compatibility.addItem("25%")
+        self.layout.addWidget(self.combo_box_compatibility)
+
+        self.button_filter = QPushButton(QIcon('start_icon.png'), "Start", self.central_widget)
+        self.button_filter.setFont(QFont("roboto", 14))
+        self.button_filter.clicked.connect(self.filter_data)
+        self.layout.addWidget(self.button_filter)
+
+        self.table = QTableWidget(self.central_widget)
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(['Compatibilidade', 'CodConcorrente', 'DescConcorrente', 'CodEmpresa', 'InfoEmpresa'])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.layout.addWidget(self.table)
+
+        self.label_status = QLabel("", self.central_widget)
+        self.layout.addWidget(self.label_status)
+
+        self.show()
+
+    def filter_data(self):
+        start_time = time.time()
+        df_Empresa = pd.read_excel(Empresa)
+        df_Concorrente= pd.read_excel(concorrente)
+        resultados = []
+
+        rows_to_process = int(self.line_edit_rows.text())
+        selected_compatibility = self.combo_box_compatibility.currentText()
+
+        counter = 0
+        for _, row_concorrente in df_Concorrente.iterrows():
+            if counter >= rows_to_process:
+                break
+
+            compatibilidades = calcular_compatibilidade(row_concorrente, df_Empresa)
+            desc_Concorrente = ', '.join(row_concorrente[['PEÇA', 'CARRO', 'ANO', 'LADO']].values.astype(str))
+
+            for compatibilidade, cod_Empresa, info_Empresa in compatibilidades:
+                if selected_compatibility == "Todas" or selected_compatibility == compatibilidade:
+                    resultados.append((
+                        compatibilidade,
+                        row_concorrente['MLB'],
+                        desc_Concorrente,
+                        cod_Empresa,
+                        info_Empresa
+                    ))
+
+            counter += 1
+            if counter % 1 == 0:
+                elapsed_time = time.time() - start_time
+                self.label_status.setText(f"Processed {counter} rows... Elapsed time: {elapsed_time:.2f} seconds")
+                self.label_status.setStyleSheet("color: white;")
+                QApplication.processEvents()
+
+        resultados = sorted(resultados, key=lambda x: x[0], reverse=True) #[:5]  # Seleciona os 5 mais compatíveis
+
+        # Salva os resultados no banco de dados
+        conn = sqlite3.connect(database_file)
+        c = conn.cursor()
+
+        # Limpa a tabela datamatch antes de inserir os novos dados
+        c.execute("DELETE FROM datamatch")
+
+        # Insere os resultados na tabela datamatch
+        c.executemany("INSERT INTO datamatch VALUES (?, ?, ?, ?, ?)", resultados)
+
+        conn.commit()
+        conn.close()
+
+        self.label_status.setText("Results saved to the database.")
+        self.populate_table(resultados)
+
+        self.button_filter.setEnabled(False)  # Desabilita o botão "Start"
+
+    def populate_table(self, data):
+        self.table.setRowCount(len(data))
+        for row, row_data in enumerate(data):
+            for col, value in enumerate(row_data):
+                item = QTableWidgetItem(str(value))
+                if col == 0:
+                    item.setBackground(QColor(152, 204, 255))  # Azul
+                elif col == 1:
+                    item.setBackground(QColor(255, 204, 0))  # Amarelo
+                elif col == 2:
+                    item.setBackground(QColor(51, 51, 102))  # Azul escuro
+                    item.setForeground(QColor(255, 255, 255))  # Texto branco
+                else:
+                    item.setBackground(QColor(255, 255, 255))  # Branco
+
+                self.table.setItem(row, col, item)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setOpacity(0.3)
+        painter.setBrush(Qt.black)
+        painter.drawRect(self.rect())
+
+
+def calcular_compatibilidade(row_concorrente, df_Empresa):
+    peca_concorrente, carro_concorrente, ano_concorrente, lado_concorrente = row_concorrente[['PEÇA', 'CARRO', 'ANO', 'LADO']]
+
+    df_filtered = df_Empresa.loc[(df_Empresa['PEÇA'] == peca_concorrente) & (df_Empresa['CARRO'] == carro_concorrente) & (df_Empresa['LADO'] == lado_concorrente)]
+
+    compatibilidades = []
+
+    if not df_filtered.empty:
+        anos_concorrente = set(str(ano).strip() for ano in str(ano_concorrente).split(','))
+        df_filtered.loc[:, 'ANOS'] = df_filtered['ANO'].apply(lambda x: set(str(ano).strip() for ano in str(x).split(',')))
+
+        df_intersect = df_filtered[df_filtered['ANOS'].apply(lambda x: bool(x.intersection(anos_concorrente)))]
+
+        if not df_intersect.empty:
+            compatibilidade = '100%'
+            df_intersect['info_Empresa'] = df_intersect[['PEÇA', 'CARRO', 'ANO', 'LADO']].astype(str).agg(', '.join, axis=1)
+            compatibilidades = [(compatibilidade, cod_Empresa, info_Empresa) for cod_Empresa, info_Empresa in df_intersect[['CODIGO', 'info_Empresa']].values]
+
+    return compatibilidades
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()  # Exibe a janela principal
+    sys.exit(app.exec_())
