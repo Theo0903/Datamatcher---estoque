@@ -3,36 +3,45 @@ import time
 
 inicio = time.time()
 
-print('Ajustando ATC, aguarde...')
+print('Iniciando a Formatação do Estoque Cambuci\n'
+      'Ajustando ATC, aguarde...\n')
 df_Atc = pd.read_excel(r'C:\AADS_XLS\ajuste\ATACADAO.xlsx')
 df_Atc = df_Atc.drop_duplicates(subset=['codigo'])
+print('Casa ATC ajustada!\n')
+
 
 print('Ajustando CBC, aguarde...')
 df_Cbc = pd.read_excel(r'C:\AADS_XLS\ajuste\CBC.xlsx')
 df_Cbc = df_Cbc.drop_duplicates(subset=['codigo'])
+print('Casa CBC ajustada!\n')
+
 
 print('Ajustando J.Filial, aguarde...')
 df_Jfilial = pd.read_excel(r'C:\AADS_XLS\ajuste\JNF_FILIAL_SP.xlsx')
 df_Jfilial = df_Jfilial.drop_duplicates(subset=['codigo'])
+print('Casa J.Filial ajustada!\n')
+
 
 print('Ajustando BIBAS, aguarde...')
 df_Bibas = pd.read_excel(r'C:\AADS_XLS\ajuste\BIBAS_MATRIZ.xlsx')
 df_Bibas = df_Bibas.drop_duplicates(subset=['codigo'])
+print('Casa BIBAS ajustada!\n')
+
 
 print('Carregando o estoque, aguarde...')
-df_estoque = pd.read_excel(r'C:\AADS_XLS\ajuste\ESTOQUE CAMBUCI 13.11 (PT1).xlsx')
+df_estoque = pd.read_excel(r'C:\AADS_XLS\ajuste\ESTOQUE CAMBUCI.xlsx')
+print('Estoque carregado!\n')
 
-print('Removendo os itens do erro de Importação, aguarde...')
+
+print('Removendo os itens com erro de Importação e Descontinuados da Cambuci, aguarde...')
 df_Importacao = pd.read_excel(r'C:\AADS_XLS\ajuste\IMPORTAÇÃO.xlsx')
-
-print('Removendo os itens da lista de exclusão, aguarde...')
 df_Exclusao = pd.read_excel(r'C:\AADS_XLS\ajuste\EXCLUSÃO.xlsx')
 
 # Excluindo itens dos DataFrames
 exclusao = df_Exclusao['codigo'].tolist()
 importacao = df_Importacao['codigo'].tolist()
-
 df_Cbc = df_Cbc[~df_Cbc['codigo'].isin(exclusao + importacao)]
+print('BlackList removida!\n')
 
 # Mapeando colunas nos DataFrames
 df_Cbc['TIPO'] = df_Cbc['codigo'].map(df_estoque.set_index('CÓD')['TIPO'])
@@ -59,7 +68,7 @@ df_Cbc = df_Cbc.apply(atualizar_estoque_bibas, axis=1)
 # Calculando tempo de processamento
 fim_bibas = time.time()
 tempo_total_bibas = fim_bibas - inicio_Bibas
-print(f"Processada a atualização da Bibas em {tempo_total_bibas:.2f} segundos")
+print(f"Processada a atualização da Bibas em {tempo_total_bibas:.2f} segundos\n")
 
 
 df_Cbc['Estoque_Jfilial'] = df_Cbc['codigo'].map(df_Jfilial.set_index('codigo')['estoque'])
@@ -77,10 +86,12 @@ def atualizar_estoque_Jfilial(row):
 df_Cbc = df_Cbc.apply(atualizar_estoque_Jfilial, axis=1)
 fim_Jfilial = time.time()
 tempo_total_jfilial = fim_Jfilial - inicio_jfilial
-print(f"Processada a atualização da J.filial em {tempo_total_jfilial:.2f} segundos")
+print(f"Processada a atualização da J.filial em {tempo_total_jfilial:.2f} segundos\n")
 
 inicio_atc = time.time()
 df_Cbc['Estoque_atc'] = df_Cbc['codigo'].map(df_Atc.set_index('codigo')['estoque'])
+
+print("Iniciando a atualização do estoque para ATC, processando...")
 
 
 def atualizar_estoque_atc(row):
@@ -93,10 +104,10 @@ def atualizar_estoque_atc(row):
 df_Cbc = df_Cbc.apply(atualizar_estoque_atc, axis=1)
 fim_atc = time.time()
 tempo_total_atc = fim_atc - inicio_atc
-print(f"Processada a atualização da Atc em {tempo_total_atc:.2f} segundos")
+print(f"Processada a atualização da Atc em {tempo_total_atc:.2f} segundos\n")
 
 inicio_manter_bibas = time.time()
-print("Iniciando a priorização da Bibas, processando...")
+print("Iniciando a priorização da Bibas com estoque maior que 4, processando...")
 
 
 def manter_bibas(row):
@@ -109,9 +120,10 @@ def manter_bibas(row):
 df_Cbc = df_Cbc.apply(manter_bibas, axis=1)
 fim_manter_bibas = time.time()
 tempo_manter_bibas = fim_manter_bibas - inicio_manter_bibas
-print(f"Priorização da casa Bibas realizada em {tempo_manter_bibas:.2f} segundos")
+print(f"Priorização da casa Bibas realizada em {tempo_manter_bibas:.2f} segundos\n")
 
 inicio_alterar_Zerado = time.time()
+print("Tratando itens zerados, aguarde...")
 
 
 def alterar_zerado(row):
@@ -123,13 +135,16 @@ def alterar_zerado(row):
 df_Cbc = df_Cbc.apply(alterar_zerado, axis=1)
 fim_alterar_Zerado = time.time()
 tempo_alterar_Zerado = fim_alterar_Zerado - inicio_alterar_Zerado
-print(f"Sobrescrevi os zerados em {tempo_alterar_Zerado:.2f} segundos")
+print(f"Zerados tratados em {tempo_alterar_Zerado:.2f} segundos\n")
+
 
 df_Cbc['Tipo'] = df_Cbc['codigo'].map(df_estoque.set_index('CÓD')['TIPO'])
 df_Cbc['Categoria'] = df_Cbc['codigo'].map(df_estoque.set_index('CÓD')['CATEGORIA'])
 
 df_EstoqueCbc = df_Cbc[['codigo', 'refer', 'descricao', 'fabricante', 'Montadora', 'estoque', 'preco', 'CASA', 'Tipo',
                         'Categoria', 'endereco']]
+
+print("Sobrescrevendo casas vazias para BIBAS, aguarde...")
 
 
 def alterar_vazio_Cbc(row):
@@ -139,10 +154,12 @@ def alterar_vazio_Cbc(row):
 
 
 df_EstoqueCbc = df_EstoqueCbc.apply(alterar_vazio_Cbc, axis=1)
-print("Vazios alterados.")
+print("Vazios alterados.\n")
 
 
 df_EstoqueCbc['EstoqueBibas'] = df_EstoqueCbc['codigo'].map(df_Bibas.set_index('codigo')['estoque'])
+
+print("Concluindo os ajustes finais...\n")
 
 
 def ajuste_final(row):
@@ -161,7 +178,6 @@ def ajuste_BibasNC(row):
 
 
 df_EstoqueCbc = df_EstoqueCbc.apply(ajuste_BibasNC, axis=1)
-print("Bibas nacional ajustado para NC.")
 
 
 def ajuste_BibasAC(row):
@@ -171,17 +187,14 @@ def ajuste_BibasAC(row):
 
 
 df_EstoqueCbc = df_EstoqueCbc.apply(ajuste_BibasAC, axis=1)
-print("Bibas acessórios para Bibas AC, ajustado.")
 
 fim = time.time()
 tempo_total = fim - inicio
-print(f"Finalizado em {tempo_total:.2f} minutos.")
 
 df_EstoqueCbc = df_EstoqueCbc.drop(['EstoqueBibas'], axis=1)
 
+print(f"Estoque concluído em {tempo_total:.2f} segundos! \n"
+      f"Aguarde, o executável encerrará Automaticamente.")
 
-df_EstoqueCbc.to_excel(r'C:\AADS_XLS\ajuste\Estoque_pronto.xlsx', index=False)
-df_Cbc.to_excel(r'C:\AADS_XLS\ajuste\Criando_Estoque.xlsx', index=False)
-
-
-
+df_EstoqueCbc.to_excel(r'C:\AADS_XLS\ajuste\ESTOQUE.xlsx', index=False)
+df_Cbc.to_excel(r'C:\AADS_XLS\ajuste\Esboço_ESTOQUE.xlsx', index=False)
