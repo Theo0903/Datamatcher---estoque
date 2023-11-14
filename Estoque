@@ -1,6 +1,8 @@
 import pandas as pd
 import time
 
+inicio = time.time()
+
 print('Ajustando ATC, aguarde...')
 df_Atc = pd.read_excel(r'C:\AADS_XLS\ajuste\ATACADAO.xlsx')
 df_Atc = df_Atc.drop_duplicates(subset=['codigo'])
@@ -18,96 +20,80 @@ df_Bibas = pd.read_excel(r'C:\AADS_XLS\ajuste\BIBAS_MATRIZ.xlsx')
 df_Bibas = df_Bibas.drop_duplicates(subset=['codigo'])
 
 print('Carregando o estoque, aguarde...')
-df_estoque = pd.read_excel(r'C:\AADS_XLS\ajuste\ESTOQUE CAMBUCI 09.11 (PT1).xlsx')
+df_estoque = pd.read_excel(r'C:\AADS_XLS\ajuste\ESTOQUE CAMBUCI 13.11 (PT1).xlsx')
 
 print('Removendo os itens do erro de Importação, aguarde...')
 df_Importacao = pd.read_excel(r'C:\AADS_XLS\ajuste\IMPORTAÇÃO.xlsx')
 
 print('Removendo os itens da lista de exclusão, aguarde...')
 df_Exclusao = pd.read_excel(r'C:\AADS_XLS\ajuste\EXCLUSÃO.xlsx')
-# caso eu queira criar a lista de exclusão com base no arquivo:
-"""letra_inicial = "Z"
-df_delete_ItemZ = df_Cbc.query('descricao.str.startswith(@letra_inicial)')
-df_delete_Refer = df_Cbc.query('refer.isna()')
-df_delete_Fabricante = df_Cbc.query('fabricante.isna()')"""
 
+# Excluindo itens dos DataFrames
+exclusao = df_Exclusao['codigo'].tolist()
+importacao = df_Importacao['codigo'].tolist()
 
-exclusao = df_Exclusao['codigo'].tolist()  # Dados presentes na df_Exclusão, serão colocados em uma lista para serem
-# removidos do Dataframe Cbc.
-print('Excluindo lista de exclusão')
+df_Cbc = df_Cbc[~df_Cbc['codigo'].isin(exclusao + importacao)]
 
-importacao = df_Importacao['codigo'].tolist()  # Dados presentes na df_Importação, serão colocados em uma lista para
-# serem removidos do Dataframe Cbc.
-print('Excluindo erro de importação')
-
-df_Cbc = df_Cbc[~df_Cbc['codigo'].isin(exclusao)]  # Nos casos onde existem códigos em comum entre o Dataframe CBC e
-# o Dataframe do parâmetro, o ~ servirá para retirar do filtro, o Dataframe será carregado sem estes dados.
-
-df_Cbc = df_Cbc[~df_Cbc['codigo'].isin(importacao)]  # Nos casos onde existem códigos em comum entre o Dataframe CBC e
-# o Dataframe do parâmetro, o ~ servirá para retirar do filtro, o Dataframe será carregado sem estes dados.
-
+# Mapeando colunas nos DataFrames
 df_Cbc['TIPO'] = df_Cbc['codigo'].map(df_estoque.set_index('CÓD')['TIPO'])
 df_Cbc['CASA'] = 'CBC'
 df_Cbc['Montadora'] = df_Cbc['codigo'].map(df_estoque.set_index('CÓD')['MONTADORA'])
-df_Cbc['Estoque_Bibas'] = df_Cbc['codigo'].map(df_Bibas.set_index('codigo')['estoque'])  # Criando coluna com base no
-# código em comum entre ambos os Dataframes, caso tenha duplicatas na chave primária, pode causar erro.
+df_Cbc['Estoque_Bibas'] = df_Cbc['codigo'].map(df_Bibas.set_index('codigo')['estoque'])
 
+# Iniciando atualizações de estoque
 inicio_Bibas = time.time()
 print("Iniciando a atualização do estoque para Bibas, processando...")
 
+# Função para atualizar estoque para Bibas
+
 
 def atualizar_estoque_bibas(row):
-    if row['Estoque_Bibas'] > row['estoque']:  # Atualizar o estoque da CBC onde a casa Atual for maior.
-        row['CASA'] = 'BIBAS'  # Atualiza a coluna 'CASA' para 'BIBAS'
+    if row['Estoque_Bibas'] >= row['estoque']:
+        row['CASA'] = 'BIBAS'
         row['estoque'] = row['Estoque_Bibas']
-        return row
-    else:
-        return row
+    return row
 
 
-df_Cbc = df_Cbc.apply(atualizar_estoque_bibas, axis=1)  # Função para Aplicar a função ao DataFrame
-df_Cbc['Estoque_Jfilial'] = df_Cbc['codigo'].map(df_Jfilial.set_index('codigo')['estoque'])
+df_Cbc = df_Cbc.apply(atualizar_estoque_bibas, axis=1)
+
+# Calculando tempo de processamento
 fim_bibas = time.time()
 tempo_total_bibas = fim_bibas - inicio_Bibas
-print(f"Processada a atualização da Bibas em {tempo_total_bibas} segundos")
+print(f"Processada a atualização da Bibas em {tempo_total_bibas:.2f} segundos")
 
+
+df_Cbc['Estoque_Jfilial'] = df_Cbc['codigo'].map(df_Jfilial.set_index('codigo')['estoque'])
 inicio_jfilial = time.time()
 print("Iniciando a atualização do estoque para J.Filial, processando...")
 
 
 def atualizar_estoque_Jfilial(row):
-    if row['Estoque_Jfilial'] > row['estoque']:  # Atualizar o estoque da CBC onde a casa Atual for maior.
-        row['CASA'] = 'J.FILIAL'  # Atualiza a coluna 'CASA' para 'J.FILIAL'
+    if row['Estoque_Jfilial'] > row['estoque']:
+        row['CASA'] = 'J.FILIAL'
         row['estoque'] = row['Estoque_Jfilial']
-        return row
-    else:
-        return row
+    return row
 
 
 df_Cbc = df_Cbc.apply(atualizar_estoque_Jfilial, axis=1)
-df_Cbc['Estoque_atc'] = df_Cbc['codigo'].map(df_Atc.set_index('codigo')['estoque'])
 fim_Jfilial = time.time()
 tempo_total_jfilial = fim_Jfilial - inicio_jfilial
-print(f"Processada a atualização da J.filial em {tempo_total_jfilial} segundos")
-
+print(f"Processada a atualização da J.filial em {tempo_total_jfilial:.2f} segundos")
 
 inicio_atc = time.time()
+df_Cbc['Estoque_atc'] = df_Cbc['codigo'].map(df_Atc.set_index('codigo')['estoque'])
 
 
 def atualizar_estoque_atc(row):
     if row['Estoque_atc'] > row['estoque'] and row['TIPO'] == 'NACIONAL':
-        row['CASA'] = 'ATC'  # Atualiza a coluna 'CASA' para 'ATC'
+        row['CASA'] = 'ATC'
         row['estoque'] = row['Estoque_atc']
-        return row
-    else:
-        return row
+    return row
 
 
 df_Cbc = df_Cbc.apply(atualizar_estoque_atc, axis=1)
 fim_atc = time.time()
 tempo_total_atc = fim_atc - inicio_atc
-print(f"Processada a atualização da Atc em {tempo_total_atc} segundos")
-
+print(f"Processada a atualização da Atc em {tempo_total_atc:.2f} segundos")
 
 inicio_manter_bibas = time.time()
 print("Iniciando a priorização da Bibas, processando...")
@@ -117,63 +103,85 @@ def manter_bibas(row):
     if row['Estoque_Bibas'] > 4:
         row['estoque'] = row['Estoque_Bibas']
         row['casa'] = 'BIBAS'
-        return row
-    else:
-        return row
+    return row
 
 
 df_Cbc = df_Cbc.apply(manter_bibas, axis=1)
 fim_manter_bibas = time.time()
 tempo_manter_bibas = fim_manter_bibas - inicio_manter_bibas
-print(f"Priorização da casa Bibas realizada em {tempo_manter_bibas} segundos")
-
+print(f"Priorização da casa Bibas realizada em {tempo_manter_bibas:.2f} segundos")
 
 inicio_alterar_Zerado = time.time()
 
 
 def alterar_zerado(row):
-    if row['estoque'] == "":
+    if pd.isna(row['estoque']) == "" or row['estoque'] == 0:
         row['estoque'] = 0
-        return row
-    else:
-        return row
+    return row
 
 
 df_Cbc = df_Cbc.apply(alterar_zerado, axis=1)
 fim_alterar_Zerado = time.time()
-tempo_alterar_Zerado = fim_alterar_Zerado- inicio_alterar_Zerado
-print(f"Sobrescrevi os zerados em {tempo_manter_bibas} segundos")
-
+tempo_alterar_Zerado = fim_alterar_Zerado - inicio_alterar_Zerado
+print(f"Sobrescrevi os zerados em {tempo_alterar_Zerado:.2f} segundos")
 
 df_Cbc['Tipo'] = df_Cbc['codigo'].map(df_estoque.set_index('CÓD')['TIPO'])
 df_Cbc['Categoria'] = df_Cbc['codigo'].map(df_estoque.set_index('CÓD')['CATEGORIA'])
-
-
-def ajuste_BibasNC(row):
-    if row['casa'] == 'BIBAS' and row['Tipo'] == 'NACIONAL':
-        row['casa'] = 'BIBAS-NC'
-        return row
-    else:
-        return row
-
-
-df_Cbc = df_Cbc.apply(ajuste_BibasNC, axis=1)
-
-
-def ajuste_BibasAC(row):
-    if row['casa'] == 'BIBAS' and row['Categoria'] == 'AC':
-        row['casa'] = 'BIBAS-AC'
-        return row
-    else:
-        return row
-
-
-df_Cbc = df_Cbc.apply(ajuste_BibasAC, axis=1)
 
 df_EstoqueCbc = df_Cbc[['codigo', 'refer', 'descricao', 'fabricante', 'Montadora', 'estoque', 'preco', 'CASA', 'Tipo',
                         'Categoria', 'endereco']]
 
 
-df_EstoqueCbc.to_excel(f'C:\\AADS_XLS\\ajuste\\Estoque_pronto.xlsx', index=False)
-df_Cbc.to_excel(f'C:\\AADS_XLS\\ajuste\\Criando_Estoque.xlsx', index=False)
+def alterar_vazio_Cbc(row):
+    if pd.isna(row['CASA']) or row['CASA'] == "":
+        row['CASA'] = "BIBAS"
+    return row
+
+
+df_EstoqueCbc = df_EstoqueCbc.apply(alterar_vazio_Cbc, axis=1)
+print("Vazios alterados.")
+
+
+df_EstoqueCbc['EstoqueBibas'] = df_EstoqueCbc['codigo'].map(df_Bibas.set_index('codigo')['estoque'])
+
+
+def ajuste_final(row):
+    if row['estoque'] == row['EstoqueBibas']:
+        row['CASA'] = 'BIBAS'
+    return row
+
+
+df_EstoqueCbc = df_EstoqueCbc.apply(ajuste_final, axis=1)
+
+
+def ajuste_BibasNC(row):
+    if row['CASA'] == 'BIBAS' and row['Tipo'] == 'NACIONAL':
+        row['CASA'] = 'BIBAS-NC'
+    return row
+
+
+df_EstoqueCbc = df_EstoqueCbc.apply(ajuste_BibasNC, axis=1)
+print("Bibas nacional ajustado para NC.")
+
+
+def ajuste_BibasAC(row):
+    if row['CASA'] == 'BIBAS' and row['Categoria'] == 'AC':
+        row['CASA'] = 'BIBAS-AC'
+    return row
+
+
+df_EstoqueCbc = df_EstoqueCbc.apply(ajuste_BibasAC, axis=1)
+print("Bibas acessórios para Bibas AC, ajustado.")
+
+fim = time.time()
+tempo_total = fim - inicio
+print(f"Finalizado em {tempo_total:.2f} minutos.")
+
+df_EstoqueCbc = df_EstoqueCbc.drop(['EstoqueBibas'], axis=1)
+
+
+df_EstoqueCbc.to_excel(r'C:\AADS_XLS\ajuste\Estoque_pronto.xlsx', index=False)
+df_Cbc.to_excel(r'C:\AADS_XLS\ajuste\Criando_Estoque.xlsx', index=False)
+
+
 
