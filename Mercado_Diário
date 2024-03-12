@@ -1,0 +1,60 @@
+import pandas as pd
+from datetime import datetime
+
+# Configurando as variáveis globais para utilização futura e mapeando o local onde serão salvos os dataframes.
+data_atual = datetime.now().strftime("%d_%m")
+Vendas_MLB = f'ARS_MLB_{data_atual}.xlsx'
+Vendas_SemMLB = f'ARS_SEM_MLB_{data_atual}.xlsx'
+Base_Vendas = f'Base Vendas_{data_atual}.xlsx'
+
+caminho_comMLB = (r"C:\Users\04-03\PYTHON\_") + Vendas_MLB
+
+caminho_semMLB = (r"C:\Users\04-03\PYTHON\_") + Vendas_SemMLB
+
+caminho_padrão = (r"C:\Users\04-03\PYTHON\_") + Base_Vendas
+
+# Carregando os arquivos para o processamento conforme necessidade.
+
+dfConSemanal = pd.read_excel(r'C:\Users\04-03\CONCORRENTE SEMANAL.xlsx')
+
+# Declaro que quero puxar somente 40 caracteres da descrição do produto.
+
+dfConSemanal['SEMCodUnico'] = dfConSemanal['Produto']  # 0:39]] + dfConSemanal['Preço Unitário'].astype(str)
+
+# Carregando a base de anúncios onde temos 6916 anúncios do concorrente mapeados. No trecho abaixo foi criado um campo
+# para o código único, criado a partir de 40 caracteres da coluna título.
+
+dfConBaseAnúncios = pd.read_excel(r'C:\Users\04-03\BASE ANALISE RELACIONAMENTO.xlsx', sheet_name='BASE ANALISADAS')
+
+dfConBaseAnúncios['BASECodUnico'] = dfConBaseAnúncios['Título'].str[0:40]  # + dfConBaseAnúncios['Valor'].astype(str)
+dfConBaseAnúncios = dfConBaseAnúncios.drop_duplicates(subset='BASECodUnico')
+
+# Carregando para as vendas semanais o MLB, baseando se na base de anúncios.
+
+dfConSemanal['MLB'] = (dfConSemanal['SEMCodUnico'].map(dfConBaseAnúncios.set_index('BASECodUnico')['MLB']))
+
+# Separando em 2 arquivos, os que foram encontrados MLBs e os vazios (falta da atualização da base de anúncios com
+# vendas)
+
+dfConSemanal_com_mlb = dfConSemanal[dfConSemanal['MLB'].notnull()]
+dfConSemanal_sem_mlb = dfConSemanal[dfConSemanal['MLB'].isnull()]
+
+# Salvando o DataFrame para um arquivo Excel com o nome contendo a data atual
+dfConSemanal_com_mlb.to_excel(caminho_comMLB, index=False)
+dfConSemanal_sem_mlb.to_excel(caminho_semMLB, index=False)
+
+
+# Carregar o DataFrame base de vendas fora da função para evitar a leitura repetida do arquivo
+df_base_vendas = pd.read_excel(r'C:\Users\04-03\03 - VENDAS AZ X CONCORRENTE.xlsx',
+                               sheet_name='base')
+
+# Filtrar o DataFrame base de vendas conforme necessidade e salvando para analisar se está correto.
+df_base_vendas = df_base_vendas[df_base_vendas['OBS'] == "OK"]
+df_base_vendas = df_base_vendas.drop_duplicates(subset='MLB CONCORRENTE')
+df_base_vendas = df_base_vendas[df_base_vendas['MLB CONCORRENTE'].notnull()]
+df_base_vendas['BaseVendasCodUnico'] = df_base_vendas['DESCRIÇÃO'].str[0:40]
+df_base_vendas.to_excel(caminho_padrão, index=False)
+
+# Faremos a atualização do arquivo de vendas sem MLB para carregar os MLbs da base de vendas
+
+
