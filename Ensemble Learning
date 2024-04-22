@@ -1,0 +1,175 @@
+import pandas as pd
+import time
+import keras
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from keras import layers
+from keras.layers import Input
+from sklearn.metrics import r2_score, mean_absolute_error
+from sklearn.ensemble import GradientBoostingRegressor
+from xgboost import XGBRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import AdaBoostRegressor
+from sklearn.model_selection import GridSearchCV
+
+# Carregar dados
+df = pd.read_excel(r'C:\Users\bruno.teofilo\Downloads\análise\Predict_Vendas\170777770_12_04_2024_03_36_09.xlsx')
+caminho_resultado = r'C:\Users\bruno.teofilo\Downloads\análise\Predict_Vendas\Resultado_Rede.xlsx'
+df_agrupado = df.groupby('Código')['Vendas'].sum().reset_index()
+df['Vendas'] = df['Código'].map(df_agrupado.set_index('Código')['Vendas'])
+df = df.drop_duplicates(['Código'])
+
+# Pre-processamento
+df['De'] = pd.to_datetime(df['De'], dayfirst=True)
+df['Até'] = pd.to_datetime(df['Até'], dayfirst=True)
+df['Duração'] = (df['Até'] - df['De']).dt.days
+
+Q1 = df['Vendas'].quantile(0.25)
+Q3 = df['Vendas'].quantile(0.75)
+IQR = Q3 - Q1
+outlier_threshold_low = Q1 - 1.5 * IQR
+outlier_threshold_high = Q3 + 1.5 * IQR
+
+# Substituir outliers pela média ou mediana
+mean_vendas = df['Vendas'].mean()
+mediana_vendas = df['Vendas'].median()  # Use essa linha se preferir a mediana
+
+df['VendasMedia'] = df['Vendas'].apply(lambda x: mean_vendas if x < outlier_threshold_low or x >
+                                       outlier_threshold_high else x)
+
+df['VendasMedian'] = df['Vendas'].apply(lambda x: mediana_vendas if x < outlier_threshold_low or
+                                        x > outlier_threshold_high else x)
+
+# Dividir os dados em X e y
+X = df[['Duração', 'Código', 'Produto', 'Modo Entrega', 'Categoria', 'Frete Gratis', 'Valor']]
+y = df['VendasMedia']
+
+# One-hot encoding para variáveis categóricas
+X = pd.get_dummies(X)
+
+# Dividir os dados em treinamento e teste
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Normalizar os dados
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+param_grid_gb = {
+    'n_estimators': [50, 100, 150],
+    'learning_rate': [0.05, 0.1, 0.2],
+    'max_depth': [3, 5, 7]
+}
+
+param_grid_xgb = {
+    'n_estimators': [50, 100, 150],
+    'learning_rate': [0.05, 0.1, 0.15],
+    'max_depth': [3, 5, 7]
+}
+
+param_grid_dt = {
+    'max_depth': [3, 5, 7, 10],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4]
+}
+
+param_grid_ada = {
+    'n_estimators': [50, 100, 150],
+    'learning_rate': [0.01, 0.1, 0.2]
+}
+
+# Otimização de hiperparâmetros com GridSearchCV
+
+# Gradient Boosting
+
+print('Iniciando Gradient Boosting...')
+gb_model = GradientBoostingRegressor(random_state=42)
+grid_search_gb = GridSearchCV(gb_model, param_grid_gb, cv=5, scoring='neg_mean_absolute_error')
+
+# Medição do tempo de execução do Gradient Boosting
+start_time_gb = time.time()
+print('Iniciando treino Gradient Boosting.')
+grid_search_gb.fit(X_train, y_train)
+end_time_gb = time.time()
+time_gb = end_time_gb - start_time_gb
+
+best_gb_model = grid_search_gb.best_estimator_
+print("Melhores hiperparâmetros para Gradient Boosting:", grid_search_gb.best_params_)
+print(f"Tempo de execução do Gradient Boosting: {time_gb:.2f} segundos")
+
+# Avaliação do modelo otimizado
+y_pred_gb = best_gb_model.predict(X_test)
+mae_gb = mean_absolute_error(y_test, y_pred_gb)
+r2_gb = r2_score(y_test, y_pred_gb)
+print('MAE do Gradient Boosting:', mae_gb)
+print('R2 Score do Gradient Boosting:', r2_gb)
+
+# XGBoost
+
+print('Iniciando XGBoost:')
+start_time_xgb = time.time()
+xgb_model = XGBRegressor(random_state=42)
+grid_search_xgb = GridSearchCV(xgb_model, param_grid_xgb, cv=5, scoring='neg_mean_absolute_error')
+
+# Medição do tempo de execução do XGBoost
+print('Iniciando treinamento XGBoost.')
+grid_search_xgb.fit(X_train, y_train)
+end_time_xgb = time.time()
+time_xgb = end_time_xgb - start_time_xgb
+
+best_xgb_model = grid_search_xgb.best_estimator_
+print("Melhores hiperparâmetros para XGBoost:", grid_search_xgb.best_params_)
+print(f"Tempo de execução do XGBoost: {time_xgb:.2f} segundos")
+
+# Avaliação do modelo otimizado
+y_pred_xgb = best_xgb_model.predict(X_test)
+mae_xgb = mean_absolute_error(y_test, y_pred_xgb)
+r2_xgb = r2_score(y_test, y_pred_xgb)
+print('MAE do XGBoost:', mae_xgb)
+print('R2 Score do XGBoost:', r2_xgb)
+
+# Decision Tree
+print("Iniciando Árvore de decisão...")
+dt_model = DecisionTreeRegressor(random_state=42)
+grid_search_dt = GridSearchCV(dt_model, param_grid_dt, cv=5, scoring='neg_mean_absolute_error')
+
+# Medição do tempo de execução da Decision Tree
+start_time_dt = time.time()
+print('Iniciando treinamento da Árvore de decisão.')
+grid_search_dt.fit(X_train, y_train)
+end_time_dt = time.time()
+time_dt = end_time_dt - start_time_dt
+
+best_dt_model = grid_search_dt.best_estimator_
+print("Melhores hiperparâmetros para Decision Tree:", grid_search_dt.best_params_)
+print(f"Tempo de execução da Decision Tree: {time_dt:.2f} segundos")
+
+# Avaliação do modelo otimizado
+y_pred_dt = best_dt_model.predict(X_test)
+mae_dt = mean_absolute_error(y_test, y_pred_dt)
+r2_dt = r2_score(y_test, y_pred_dt)
+print('MAE da Árvore de Decisão:', mae_dt)
+print('R2 Score da Árvore de Decisão:', r2_dt)
+
+# AdaBoost
+ada_model = AdaBoostRegressor(random_state=42)
+grid_search_ada = GridSearchCV(ada_model, param_grid_ada, cv=5, scoring='neg_mean_absolute_error')
+
+# Medição do tempo de execução do AdaBoost
+print('Iniciando treinamento ADA...')
+start_time_ada = time.time()
+print('Treinando ADA.')
+grid_search_ada.fit(X_train, y_train)
+end_time_ada = time.time()
+time_ada = end_time_ada - start_time_ada
+
+best_ada_model = grid_search_ada.best_estimator_
+print("Melhores hiperparâmetros para AdaBoost:", grid_search_ada.best_params_)
+print(f"Tempo de execução do AdaBoost: {time_ada:.2f} segundos")
+
+# Avaliação do modelo otimizado
+y_pred_ada = best_ada_model.predict(X_test)
+mae_ada = mean_absolute_error(y_test, y_pred_ada)
+r2_ada = r2_score(y_test, y_pred_ada)
+print('MAE do AdaBoost:', mae_ada)
+print('R2 Score do AdaBoost:', r2_ada)
