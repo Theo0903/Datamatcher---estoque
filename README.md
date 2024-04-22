@@ -7,3 +7,5 @@ DataMatcher: O código consiste em Comparar strings de 2 bases de dados diferent
 Empresa_Ajustado - o código consiste em pegar 1 base de dados e dividi-lá de forma padrão, para conseguir através do Datamatcher achar similaridade com a base de dados do concorrente.
 
 Concorrente_Ajustado - o código consiste em pegar 1 base de dados e dividi-lá de forma padrão, para conseguir através do Datamatcher achar similaridade com a base de dados da empresa.
+
+Ensemble Learning - O objetivo é tentar encontrar padrões de vendas de algum produto ou até prever as vendas dentro de x dados representados por colunas do excel. No momento estou montando este modelo de ensenble learning e aprendendo junto a um curso que estou fazendo e dando a manutenção com base no meu cenário atual.
