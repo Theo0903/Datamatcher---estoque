@@ -1,0 +1,85 @@
+import pandas as pd
+import numpy as np
+from imblearn.over_sampling import SMOTE
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
+
+
+df_base = pd.read_excel(r'C:\Python\BTEO_AUTO_MACHER\BASE_AUTO_MACHER.xlsx', sheet_name='Learning')
+path_save = r'C:\Python\BTEO_AUTO_MACHER\Result.xlsx'
+
+pd.set_option('display.max_columns', 10)
+
+df_base['OBS'] = df_base['OBS'].replace({'OK': 0, 'NAO': 1})
+
+total_linhas_vazias = df_base.isna().sum(axis=1).eq(df_base.shape[1]).sum()
+
+print("Total de linhas em branco:", total_linhas_vazias)
+
+previsores = df_base.iloc[:, 0:2].values
+
+alvo = df_base.iloc[:, 2].values
+
+previsores_Tr = ColumnTransformer(transformers=[('OneHot', OneHotEncoder(), [0, 1])],
+                                  remainder='passthrough').fit_transform(previsores)
+
+
+scaler = StandardScaler(with_mean=False)
+previsores_Tr = scaler.fit_transform(previsores_Tr)
+previsores_Tr = previsores_Tr.toarray()
+
+"""
+smote = SMOTE(random_state=42)
+X_res, y_res = smote.fit_resample(previsores_Tr, alvo)
+"""
+
+# Divide o conjunto de dados balanceado
+x_treino, x_teste, y_treino, y_teste = train_test_split(previsores_Tr, alvo, test_size=0.3, random_state=42)
+
+print(y_teste.shape)
+
+kfold = KFold(n_splits = 30, shuffle=True, random_state = 5)
+
+# Treina o modelo Naive Bayes
+naive = GaussianNB()
+naive.fit(x_treino, y_treino)
+
+# Faz as previsões no conjunto de teste
+previsoes_naive = naive.predict(x_teste)
+
+# Avalia o modelo
+print("Acurácia: %.2f%%" % (accuracy_score(y_teste, previsoes_naive) * 100.0))
+print(confusion_matrix(y_teste, previsoes_naive))
+print(classification_report(y_teste, previsoes_naive))
+
+matriz_confusao = confusion_matrix(y_teste, previsoes_naive)
+
+# Define os rótulos das classes
+classes = ["OK", "NÃO"]
+
+# Cria o heatmap da matriz de confusão
+sns.set(font_scale=1.2)  # Ajusta o tamanho da fonte
+plt.figure(figsize=(8, 6))
+sns.heatmap(matriz_confusao, annot=True, fmt='d', cmap='Blues', xticklabels=classes, yticklabels=classes)
+plt.xlabel('Classe Prevista')
+plt.ylabel('Classe Real')
+plt.title('Matriz de Confusão')
+# plt.show()
+
+# Criar um DataFrame para armazenar as previsões
+df_previsoes = pd.DataFrame({'Previsoes_Naive': previsoes_naive})
+
+# Concatenar o DataFrame de previsões com o DataFrame original
+
+df_resultado = pd.concat([df_base, df_previsoes], axis=1)
+df_resultado.to_excel(path_save, index=False)
+
+# Exibir o DataFrame resultante
